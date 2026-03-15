@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 TELEGRAM_TOKEN   = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
-ANTHROPIC_KEY    = os.environ["ANTHROPIC_KEY"]
+GEMINI_KEY = os.environ["GEMINI_KEY"]
 
 # Kullanıcı başına beklenen fal türü
 user_state = {}  # chat_id → {"type": "kahve"|"el"|"tarot"}
@@ -113,47 +113,43 @@ def get_updates(offset=None):
         log.error(f"getUpdates hata: {e}")
         return []
 
-# ── ANTHROPIC ─────────────────────────────────────────────
 def analyze_image(image_b64, fal_type):
     prompt = PROMPTS.get(fal_type, PROMPTS["kahve"])
     try:
         r = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "Content-Type": "application/json",
-                "x-api-key": ANTHROPIC_KEY,
-                "anthropic-version": "2023-06-01"
-            },
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + GEMINI_KEY,
+            headers={"Content-Type": "application/json"},
             json={
-                "model": "claude-sonnet-4-20250514",
-                "max_tokens": 1000,
-                "messages": [{
-                    "role": "user",
-                    "content": [
+                "contents": [{
+                    "parts": [
                         {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "image/jpeg",
+                            "inline_data": {
+                                "mime_type": "image/jpeg",
                                 "data": image_b64
                             }
                         },
-                        {"type": "text", "text": prompt}
+                        {"text": prompt}
                     ]
-                }]
+                }],
+                "generationConfig": {
+                    "temperature": 1.0,
+                    "maxOutputTokens": 1000
+                }
             },
             timeout=30
         )
         data = r.json()
         if not r.ok:
-            raise Exception(data.get("error", {}).get("message", "API hatası"))
-        text = data["content"][0]["text"]
+            err = data.get("error", {}).get("message", "API hatası")
+            raise Exception(err)
+        text = data["candidates"][0]["content"]["parts"][0]["text"]
         cleaned = text.replace("```json", "").replace("```", "").strip()
         return json.loads(cleaned)
     except json.JSONDecodeError:
         raise Exception("Fal yorumu ayrıştırılamadı")
     except Exception as e:
         raise Exception(str(e))
+
 
 # ── FORMAT ────────────────────────────────────────────────
 def format_fortune(fortune, fal_type):
