@@ -117,7 +117,7 @@ def analyze_image(image_b64, fal_type):
     prompt = PROMPTS.get(fal_type, PROMPTS["kahve"])
     try:
         r = requests.post(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + GEMINI_KEY,
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + GEMINI_KEY,
             headers={"Content-Type": "application/json"},
             json={
                 "contents": [{
@@ -307,3 +307,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
